@@ -1,28 +1,25 @@
 const { db } = require('../util/admin');
 
-exports.getPlayer = (req, res) => {
+exports.getPlayer = async (req, res) => {
 	const playerID = req.params.playerID;
-	let playerData = {};
-	db.doc(`/players/${playerID}`)
-		.get()
-		.then(doc => {
-			if (!doc.exists)
-				res.status(404).json({ error: 'Player not found' });
-			playerData = doc.data();
-			playerData.playerID = doc.id;
-			return db
-				.collection('queues')
-				.where('player', '==', playerID)
-				.get();
-		})
-		.then(data => {
-			playerData.queues = data.docs.map(doc => doc.data());
-			return res.status(200).json(playerData);
-		})
-		.catch(err => {
-			console.error(err);
-			res.status(500).json({ error: err.code });
-		});
+    let playerData = {};
+    try {
+        const doc = await db.doc(`/players/${playerID}`).get()
+        if (!doc.exists)
+            res.status(404).json({ error: 'Player not found' });
+        playerData = doc.data();
+        playerData.playerID = doc.id;
+        const data = await db
+            .collection('queues')
+            .where('player', '==', playerID)
+            .get();
+        playerData.queues = data.docs.map(doc => doc.data());
+        return res.status(200).json(playerData);
+    }
+    catch(e) {
+        console.error(err);
+        res.status(500).json({ error: err.code });
+    }
 };
 
 exports.updatePlayer = (req, res) => {

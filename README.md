@@ -1,3 +1,5 @@
 # KyumeeFirebase
 
-`firebase login --no-localhost`
+npm i -g firebase-tools
+firebase login --no-localhost
+firebase emulators:start

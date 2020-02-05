@@ -1,7 +1,7 @@
 const db = {
     users: [
         {
-            id: !ID,
+            id: !ID, // Unique
             name: !String,
             socials: [
                 {
@@ -13,7 +13,7 @@ const db = {
     ],
     players: [
         {
-            id: !ID,
+            id: !ID, // Unique
             user: !ID,
             bracket: !String,
             ratings: ![!Number]
@@ -21,7 +21,8 @@ const db = {
     ],
     queues: [
         {
-            id: !ID,
+            id: !ID, // Unique
+            user: !ID,
             player: !ID,
             bracket: !String,
             active: !Boolean,
@@ -30,6 +31,7 @@ const db = {
     ],
     teams: [
         {
+            id: !ID, // Unique
             players: [
                 {
                     id: !ID,
@@ -41,6 +43,7 @@ const db = {
     ],
     matches: [
         {
+            id: !ID, // Unique
             teams: [
                 {
                     players: [
@@ -55,6 +58,21 @@ const db = {
             ],
             active: !Boolean,
             confirmed: !Boolean
+        }
+    ],
+    brackets: [
+        {
+            slug: !String, // Unique
+            name: !String,
+            whitelist: {
+                active: !Boolean,
+                users: ![!ID] // Player IDs
+            },
+            blacklist: {
+                active: !Boolean,
+                users: ![!ID] // Player IDs
+            },
+            active: !Boolean
         }
     ]
 }
