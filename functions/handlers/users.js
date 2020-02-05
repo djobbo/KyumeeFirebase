@@ -45,12 +45,21 @@ exports.getAllUsers = async (req, res) => {
 
 exports.createUser = async (req, res) => {
     try {
-        await db.collection('users').add({
-            name: req.body.name,
-            socials: {},
-            created: new Date().toUTCString()
-        });
-        return res.status(201).json(`user successfully created!`);
+        if (!req.body.userID || !req.body.name)
+            return res.status(400).json(`Bad Request`);
+
+        const userDoc = db.doc(`users/${req.body.userID}`).get();
+        if (userDoc.exists) {
+            await userDoc.update({ name: req.body.name });
+            return res.status(201).json(`user successfully updated!`);
+        }
+        else {
+            await db.doc(`users/${req.body.userID}`).set({
+                name: req.body.name,
+                created: new Date()
+            });
+            return res.status(201).json(`user successfully created!`);
+        }
     }
     catch(e) {
         return res.status(500).json({ error: 'Something went wrong' });
@@ -62,45 +71,45 @@ exports.startQueue = async (req, res) => {
         const userID = req.params.userID;
         const bracket = req.body.bracket;
 
+        
         const [userDoc, playerDocs, activeQueues, bracketDoc] = await Promise.all([
             db.doc(`/users/${userID}`)
-                .get(),
+            .get(),
             db.collection('players')
-                .where('user', '==', userID)
-                .where('bracket', '==', bracket)
-                .get(),
+            .where('user', '==', userID)
+            .where('bracket', '==', bracket)
+            .get(),
             db.collection('queues')
-                .where('user', '==', userID)
-                .where('bracket', '==', bracket)
-                .get(),
-            db.collection('brackets')
-                .where('slug', '==', bracket)
-                .get()
+            .where('user', '==', userID)
+            .where('bracket', '==', bracket)
+            .get(),
+            db.doc(`brackets/${bracket}`)
+            .get()
         ]);
-
-        if (!bracketDoc.exists)
-            return res.status(404).json({ error: "Bracket doesn't exist" });
         
+        if (!bracketDoc.exists)
+        return res.status(404).json({ error: "Bracket doesn't exist" });
+
         const bracketData = bracketDoc.data();
         if (bracketData.whitelist.active && !bracketData.whitelist.users.includes(userID))
-            return res.status(403).json({ error: "Not Whitelisted!" });
+        return res.status(403).json({ error: "Not Whitelisted!" });
         
         if (bracketData.blacklist.active && bracketData.blacklist.users.includes(userID))
-            return res.status(403).json({ error: "Blacklisted!" });
+        return res.status(403).json({ error: "Blacklisted!" });
         
         if (!userDoc.exists)
             return res.status(404).json({ error: 'User not found' });
         
-        const playerDoc = playerDocs[0].exists
-            ? playerDocs[0]
+        const playerDoc = playerDocs.docs.length > 0
+            ? playerDocs.docs[0]
             : await db.collection('players').add({
                 user: userID,
                 bracket,
-                ratings: [1200],
-                created: new Date().toUTCString()
+                ratings: [bracketData.start_rating],
+                created: new Date()
             });
-
-        if (activeQueues.length >= 0)
+        
+        if (activeQueues.docs.length > 0)
             return res.status(400).json({ error: `User already in the ${bracket} queue!`});
         
         const newQueue = {
@@ -108,14 +117,14 @@ exports.startQueue = async (req, res) => {
             player: playerDoc.id,
             bracket,
             active: true,
-            created: new Date().toUTCString()
+            created: new Date()
         }
         
         await db.collection('queues').add(newQueue);
         return res.status(201).json(`User is now in queue!`);
     }
     catch(e) {
-        res.status(500).json({ error: err.code });
+        res.status(500).json({ error: e.code });
     }
 }
 
