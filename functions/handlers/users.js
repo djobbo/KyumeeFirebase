@@ -82,6 +82,7 @@ exports.startQueue = async (req, res) => {
             db.collection('queues')
             .where('user', '==', userID)
             .where('bracket', '==', bracket)
+            .where('active', '==', true)
             .get(),
             db.doc(`brackets/${bracket}`)
             .get()
@@ -144,17 +145,16 @@ exports.endQueue = async (req, res) => {
         ]);
 
         if (!userDoc.exists)
-            res.status(404).json({ error: 'User not found' });
-        
-        if (!activeQueues.length <= 0)
-            res.status(404).json({ error: 'Not in queue' });
+            return res.status(404).json({ error: 'User not found' });
+        if (activeQueues.docs.length <= 0)
+            return res.status(404).json({ error: 'Not in queue' });
 
-        await Promise.all(activeQueues.map(doc => db.doc(`/queues/${doc.id}`).update({ active: false })));
+        await Promise.all(activeQueues.docs.map(doc => db.doc(`/queues/${doc.id}`).update({ active: false })));
 
         return res.status(200).json(`${activeQueues.length} queue(s) stopped`);
     }
     catch(e) {
-        console.error(err);
-        res.status(500).json({ error: err.code });
+        console.log(e);
+        res.status(500).json({ error: e.code });
     }
 }
