@@ -1,8 +1,8 @@
-const { db } = require('../util/admin');
+const { db } = require('../../util/admin');
 
-exports.getUser = async (data, context) => {
+exports.getUser = async (req, res) => {
 	try {
-		const userID = data.userID;
+		const userID = req.params.userID;
 
 		const [userDoc, players, queues] = await Promise.all([
 			db.doc(`/users/${userID}`).get(),
@@ -17,7 +17,7 @@ exports.getUser = async (data, context) => {
 		]);
 
 		if (!userDoc.exists)
-		    return { status: 404, json: { error: 'User not found' } };
+			return res.status(404).json({ error: 'User not found' });
 
 		const userData = {
 			id: userDoc.id,
@@ -25,64 +25,62 @@ exports.getUser = async (data, context) => {
 			players: players.docs.map(doc => ({ id: doc.id, ...doc.data() })),
 			queues: queues.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 		};
-        
-		return { status: 200, json: userData };
+
+		return res.status(200).json(userData);
 	} catch (e) {
-		return { status: 500, json: { error: e.code } };
+		return res.status(500).json({ error: e.code });
 	}
 };
 
-exports.getAllUsers = async (data, context) => {
+exports.getAllUsers = async (req, res) => {
 	try {
-		const usersData = await db.collection('users').get();
-		let users = usersData.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-		return { status: 200, json: users };
+		const data = await db.collection('users').get();
+		let users = data.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+		return res.status(200).json(users);
 	} catch (e) {
-        return { status: 500, json: { error: 'Something went wrong' } };
+		return res.status(500).json({ error: 'Something went wrong' });
 	}
 };
 
-exports.createUser = async (data, context) => {
+exports.createUser = async (req, res) => {
 	try {
-        const { userID, name } = data;
-        // TODO: make a function that doesn't need an userID to create a new user
-		if (!userID || !name)
-            return { status: 400, json: { error: `Bad Request` } };
+		if (!req.body.userID || !req.body.name)
+			return res.status(400).json(`Bad Request`);
 
-		const userDoc = db.doc(`users/${userID}`).get();
+		const userDoc = db.doc(`users/${req.body.userID}`).get();
 		if (userDoc.exists) {
-			await userDoc.update({ name });
-        return { status: 201, json: `user successfully updated!` };
+			await userDoc.update({ name: req.body.name });
+			return res.status(201).json(`user successfully updated!`);
 		} else {
-			await db.doc(`users/${userID}`).set({
-				name,
+			await db.doc(`users/${req.body.userID}`).set({
+				name: req.body.name,
 				created: new Date()
 			});
-            return { status: 201, json: `user successfully created!` };
+			return res.status(201).json(`user successfully created!`);
 		}
 	} catch (e) {
-        return { status: 500, json: { error: 'Something went wrong' } };
+		return res.status(500).json({ error: 'Something went wrong' });
 	}
 };
 
-exports.startQueue = async (data, context) => {
+exports.startQueue = async (req, res) => {
 	try {
-		const userID = data.userID;
-		const event = data.event;
-		const bracket = data.bracket;
+		const userID = req.params.userID;
+		const event = req.body.event;
+		const bracket = req.body.bracket;
 
 		const bracketDoc = await db.doc(`brackets/${bracket}`).get();
 
 		if (!bracketDoc.exists)
-            return { status: 404, json: { error: "Bracket doesn't exist" } };
+			return res.status(404).json({ error: "Bracket doesn't exist" });
 
 		const { whitelist, blacklist, specs } = bracketDoc.data();
 
 		if (whitelist.active && !whitelist.users.includes(userID))
-            return { status: 403, json: { error: "Not Whitelisted!" } };
+			return res.status(403).json({ error: 'Not Whitelisted!' });
 
 		if (blacklist.active && blacklist.users.includes(userID))
-            return { status: 403, json: { error: "Blacklisted!" } };
+			return res.status(403).json({ error: 'Blacklisted!' });
 
 		const [userDoc, playerDocs, activeQueues] = await Promise.all([
 			db.doc(`/users/${userID}`).get(),
@@ -100,7 +98,7 @@ exports.startQueue = async (data, context) => {
 		]);
 
 		if (!userDoc.exists)
-            return { status: 404, json: { error: 'User not found' } };
+			return res.status(404).json({ error: 'User not found' });
 
 		const playerDoc =
 			playerDocs.docs.length > 0
@@ -113,7 +111,9 @@ exports.startQueue = async (data, context) => {
 				  });
 
 		if (activeQueues.docs.length > 0)
-            return { status: 400, json: { error: `User already in the ${bracket} queue!` } };
+			return res
+				.status(400)
+				.json({ error: `User already in the ${bracket} queue!` });
 
 		const newQueue = {
 			user: userID,
@@ -124,16 +124,16 @@ exports.startQueue = async (data, context) => {
 		};
 
 		await db.collection('queues').add(newQueue);
-        return { status: 201, json: `User is now in queue!` };
+		return res.status(201).json(`User is now in queue!`);
 	} catch (e) {
-        return { status: 500, json: { error: e.code } };
+		res.status(500).json({ error: e.code });
 	}
 };
 
-exports.endQueue = async (data, context) => {
+exports.endQueue = async (req, res) => {
 	try {
-		const userID = data.userID;
-		const bracket = data.bracket;
+		const userID = req.params.userID;
+		const bracket = req.body.bracket;
 
 		const [userDoc, activeQueues] = await Promise.all([
 			db.doc(`/users/${userID}`).get(),
@@ -146,18 +146,19 @@ exports.endQueue = async (data, context) => {
 		]);
 
 		if (!userDoc.exists)
-            return { status: 404, json: { error: 'User not found' } };
+			return res.status(404).json({ error: 'User not found' });
 		if (activeQueues.docs.length <= 0)
-            return { status: 404, json: { error: 'Not in queue' } };
+			return res.status(404).json({ error: 'Not in queue' });
 
 		await Promise.all(
 			activeQueues.docs.map(doc =>
 				db.doc(`/queues/${doc.id}`).update({ active: false })
 			)
 		);
-        
-        return { status: 200, json: `${activeQueues.length} queue(s) stopped` };
+
+		return res.status(200).json(`${activeQueues.length} queue(s) stopped`);
 	} catch (e) {
-        return { status: 500, json: { error: e.code } };
+		console.log(e);
+		res.status(500).json({ error: e.code });
 	}
 };

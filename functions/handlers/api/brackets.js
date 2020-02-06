@@ -1,4 +1,4 @@
-const { db } = require('../util/admin');
+const { db } = require('../../util/admin');
 const slugify = require('slugify');
 
 exports.createBracket = async (req, res) => {
