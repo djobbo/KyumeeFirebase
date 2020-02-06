@@ -1,1 +1,17 @@
-{}
+{
+  "hosting": {
+    "site": "rankxtest",
+    "public": "frontend/build",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/api",
+        "function": "api"
+      }
+    ]
+  }
+}
